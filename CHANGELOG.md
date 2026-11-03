@@ -38,6 +38,9 @@ record in [`docs/decisions/`](docs/decisions/).
 - ADR-0002's key-derivation settings are superseded by ADR-0015; PRD R16's check and R17 are Built; backlog items 1 (Vault) and 13 are done, item 3 records the spec's out-of-date vault table, and item 15 notes the desktop app's missing passphrase confirmation.
 - README: removed the note saying release files don't exist yet, now that 1.1.0 is published.
 
+### Security
+- Upgraded pyasn1 0.6.4 → 0.6.5 (a dependency of google-auth, used by the Gemini provider) to fix CVE-2026-119194, CVE-2026-119195, CVE-2026-119196 and CVE-2026-119197.
+
 ## [1.1.0] - 2026-10-28
 
 The first version published as release files: a pre-release on [GitHub Releases](https://github.com/dustenatx/QuestVector/releases). Installing it needs Python 3.14 (see Removed).
