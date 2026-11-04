@@ -441,3 +441,25 @@ Not measured yet, and worth checking before or during phase (c): first-load
 time on slower machines and slow connections, and Edge. Mobile isn't a goal
 until it's tested (PRD G8).
 
+## 17. Pull request template
+Decided 3 Nov 2026 (owner): QuestVector adopts the base pull request
+template, `.github/pull_request_template.md`, from the Personal Software
+Projects engineering standards. **Blocked:** the base template isn't written
+yet; it's on a cross-project backlog outside this repository. Nothing to
+build until it exists.
+
+When it exists:
+- Add `.github/pull_request_template.md`, starting from the base template and
+  tailored for QuestVector:
+  - **Decision records:** which ADRs the change relies on, and which it
+    changes or supersedes.
+  - **ADR-0001 check:** nothing is published externally beyond what ADR-0014
+    (GitHub Releases) and ADR-0016 (the GitHub Pages browser app) allow.
+  - **Vault and keys:** any change to the vault, encryption, or key handling.
+  - **Live AI testing:** which LLM providers were tested live, and with what
+    data. Synthetic data only, unless the owner says otherwise.
+  - No deploy section.
+- Add a line to `CLAUDE.md` telling agents to fill in the template's sections
+  in the pull request body, because `gh pr create --body` skips the template.
+- Record the change in `CHANGELOG.md`. Add an ADR only if the tailoring
+  makes a design choice worth recording.
