@@ -88,7 +88,7 @@ after that passes. The core never imports pywebview; only
 
 ## 3. Running the core on synthetic data
 
-Fixtures: `tests/fixtures/ollama_live/` (dossier and job description) and
+Fixtures: `tests/fixtures/live_narrative/` (dossier and job description) and
 `tests/fixtures/vault/v1-vault.json`. Every step calls the unmodified core
 from [`steps.py`](../../spikes/browser-pyodide/steps.py).
 

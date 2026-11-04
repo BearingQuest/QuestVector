@@ -210,11 +210,18 @@ Acceptance criteria use EARS-style phrasing.
 
 **R15 — Live provider testing at no cost.** **Partly built.**
 - The test suite SHALL include opt-in live tests, skipped by default, for at
-  least one remote provider on a free tier and for a local Ollama model.
-- Live tests against remote providers SHALL use synthetic data only.
+  least one remote provider at no extra cost (a free tier or already-paid
+  API credits) and for a local Ollama model.
+- Live tests against remote providers SHALL use synthetic data only, and
+  SHALL never print, log, or report the API key.
 - Built: the local Ollama live test (`tests/test_ollama_live.py`), on
   synthetic data, skipped unless `QV_OLLAMA_LIVE=1`.
-- Planned (backlog item 8): the remote-provider live test.
+- Built: the remote-provider live test (`tests/test_remote_live.py`), on the
+  same synthetic data, skipped unless `QV_LIVE_PROVIDERS` names the
+  provider. It supports Anthropic, OpenAI and Gemini.
+- Pending (backlog item 8): a passing live run against Anthropic, on the
+  owner's included API credits.
+- Planned: a live run against Gemini on Google AI Studio's free tier.
 
 ### 5.6 Vault
 

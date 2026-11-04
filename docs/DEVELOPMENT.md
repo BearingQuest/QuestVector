@@ -22,7 +22,7 @@ uv sync --all-extras               # creates .venv from uv.lock
 dependency group: pytest, mypy, pyflakes, and the type stubs mypy needs.
 `--all-extras` adds the three cloud AI provider SDKs (`[llm]`). Without it,
 the 24 tests that patch those SDKs skip with the reason shown; install it to
-run all 251 that run by default (the live Ollama test is opt-in; see below).
+run all 255 that run by default (the live tests are opt-in; see below).
 Run commands with `uv run` (for example `uv run qv --version`), or
 `source .venv/bin/activate` first. Running the desktop app
 (`uv run python -m questvector.desktop.app`) also needs pywebview's platform
@@ -60,7 +60,7 @@ change the pin, and check `uv build` still succeeds with no warnings.
 Run all of these before opening a pull request:
 
 ```bash
-uv run pytest                                     # 252 tests: 251 run, 1 live test skipped (24 more skip without [llm])
+uv run pytest                                     # 259 tests: 255 run, 4 live tests skipped (24 more skip without [llm])
 uv run pytest --cov=questvector                   # fails below 90% line coverage
 uv run mypy questvector                           # type checks; expect "no issues found"
 uv run pyflakes questvector tests                 # lint; expect no output
@@ -126,10 +126,9 @@ A false positive can be suppressed with an inline
 `# nosemgrep: <rule-id>` comment that states the reason.
 
 No test needs a network connection, an API key, or a display. Narrative
-generation is tested against simulated providers by default. The one live
-test, against a local Ollama server, is opt-in and skipped otherwise (next
-section). A live test against a remote provider is still planned (backlog
-item 8).
+generation is tested against simulated providers by default. The live
+tests, against a local Ollama server and against remote providers, are
+opt-in and skipped otherwise (next sections).
 
 The vault's key derivation takes about 150 ms at its shipped 1,000,000
 iterations, so an autouse fixture in `tests/conftest.py` (`fast_kdf`)
@@ -147,11 +146,13 @@ prefix.
 
 `tests/test_ollama_live.py` runs narrative generation end to end through
 QuestVector's Ollama provider, on the synthetic dossier and job description
-in `tests/fixtures/ollama_live/`. Nothing leaves the machine. It checks that
-a non-empty narrative comes back without an error; it doesn't check
-accuracy (backlog item 5). `answer_key.json` in the same folder lists the
-allowed facts and the three trap keywords (Datadog, HashiCorp Vault, SOC 2:
-in the job description, not the dossier) for scoring output by hand.
+in `tests/fixtures/live_narrative/` (shared with the remote live test).
+Nothing leaves the machine. It checks that a non-empty narrative comes back
+without an error; it doesn't check accuracy (backlog item 5). It prints the
+narrative, shown when pytest runs with `-s`. `answer_key.json` in the same
+folder lists the allowed facts and the three trap keywords (Datadog,
+HashiCorp Vault, SOC 2: in the job description, not the dossier) for scoring
+that output by hand.
 
 1. Install Ollama from [ollama.com](https://ollama.com/download) and start
    it (the app, or `ollama serve`).
@@ -160,7 +161,7 @@ in the job description, not the dossier) for scoring output by hand.
 3. Run:
 
    ```bash
-   QV_OLLAMA_LIVE=1 QV_OLLAMA_MODEL=gemma4:12b-it-q4_K_M uv run pytest tests/test_ollama_live.py
+   QV_OLLAMA_LIVE=1 QV_OLLAMA_MODEL=gemma4:12b-it-q4_K_M uv run pytest tests/test_ollama_live.py -s
    ```
 
 Settings: `QV_OLLAMA_LIVE=1` turns the test on; `QV_OLLAMA_MODEL` (default
@@ -193,8 +194,62 @@ limit before it answers, hasn't been checked against a live API.
 
 A vault keeps the model it was set up with. A vault set up with an old
 default keeps sending that ID, and once the model is retired, generation
-fails with the provider's error. Run `qv vault set-key --provider <name>`
-again to store the new default, or pass `--model`.
+fails with an error naming the model and the fix. Run
+`qv vault set-key --provider <name>` again to store the new default, or
+pass `--model`.
+
+### Live test against a remote provider
+
+`tests/test_remote_live.py` runs narrative generation end to end through a
+remote provider, on the same synthetic dossier and job description as the
+Ollama test. Only that synthetic data is sent, never a real dossier. It
+makes one generation call per provider you opt in, at the usual 600-token
+limit, checks that a non-empty narrative comes back without an error, and
+prints it for scoring by hand against `answer_key.json`. Anthropic is the
+first provider planned for a live run (backlog item 8); OpenAI and Gemini
+are supported by the test but haven't been run.
+
+**Cost (Anthropic):** the run uses your included Anthropic API credits.
+With auto-reload off, it can't charge a card; if the credits run out, the
+call fails. One run sends under 1,000 input tokens (the prompt is about
+2,300 characters) and gets at most 600 output tokens. At Claude Sonnet 5.5's $2 input and $10 output per
+million tokens ([pricing](https://platform.claude.com/docs/en/about-claude/pricing),
+checked 4 Nov 2026), that is under a cent. The SDK retries a rate-limit or
+server error up to 2 times, so a failing call can mean up to 3 requests;
+a successful run makes one.
+
+Run it in your own Terminal (zsh), so the key never lands in a file or in
+shell history:
+
+1. Create a key in the [Anthropic Console](https://console.anthropic.com/settings/keys).
+   A key made just for testing, deleted afterwards, limits what a leak
+   could cost.
+2. Read the key into the shell without echoing it. `read -s` doesn't show
+   what you type or paste, and its input isn't saved in shell history:
+
+   ```zsh
+   read -rs "ANTHROPIC_API_KEY?Anthropic API key: "; echo
+   export ANTHROPIC_API_KEY
+   ```
+3. Run the test (`-s` shows the narrative):
+
+   ```zsh
+   QV_LIVE_PROVIDERS=anthropic uv run pytest tests/test_remote_live.py -s
+   ```
+4. Remove the key from the shell:
+
+   ```zsh
+   unset ANTHROPIC_API_KEY
+   ```
+
+Settings: `QV_LIVE_PROVIDERS` lists the providers to test, comma-separated
+(`anthropic`, `openai`, `gemini`); a provider not listed is skipped, and an
+unknown name fails. Each provider's key comes from its usual variable,
+`ANTHROPIC_API_KEY`, `OPENAI_API_KEY` or `GEMINI_API_KEY`; a listed provider
+with no key fails rather than skips. The model is the provider's default
+unless `QV_ANTHROPIC_MODEL`, `QV_OPENAI_MODEL` or `QV_GEMINI_MODEL` is set.
+The key is passed only to the provider: the test never prints it, and its
+failure messages are redacted and shown without a traceback.
 
 ## Project layout
 
