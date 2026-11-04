@@ -22,7 +22,7 @@ uv sync --all-extras               # creates .venv from uv.lock
 dependency group: pytest, mypy, pyflakes, and the type stubs mypy needs.
 `--all-extras` adds the three cloud AI provider SDKs (`[llm]`). Without it,
 the 16 tests that patch those SDKs skip with the reason shown; install it to
-run all 243 that run by default (the live Ollama test is opt-in; see below).
+run all 247 that run by default (the live Ollama test is opt-in; see below).
 Run commands with `uv run` (for example `uv run qv --version`), or
 `source .venv/bin/activate` first. Running the desktop app
 (`uv run python -m questvector.desktop.app`) also needs pywebview's platform
@@ -60,7 +60,7 @@ change the pin, and check `uv build` still succeeds with no warnings.
 Run all of these before opening a pull request:
 
 ```bash
-uv run pytest                                     # 244 tests: 243 run, 1 live test skipped (16 more skip without [llm])
+uv run pytest                                     # 248 tests: 247 run, 1 live test skipped (16 more skip without [llm])
 uv run pytest --cov=questvector                   # fails below 90% line coverage
 uv run mypy questvector                           # type checks; expect "no issues found"
 uv run pyflakes questvector tests                 # lint; expect no output

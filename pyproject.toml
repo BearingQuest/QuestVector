@@ -29,10 +29,10 @@ dependencies = [
 # installs all three at once. The fourth supported provider, Ollama, needs
 # no extra -- it's driven over plain HTTP via the standard library, since
 # it's a local server the user runs themselves (see questvector/core/llm.py).
-llm-anthropic = ["anthropic>=0.40"]
+llm-anthropic = ["anthropic>=2.0"]
 llm-openai = ["openai>=1.50"]
 llm-gemini = ["google-genai>=0.3"]
-llm = ["anthropic>=0.40", "openai>=1.50", "google-genai>=0.3"]
+llm = ["anthropic>=2.0", "openai>=1.50", "google-genai>=0.3"]
 
 [dependency-groups]
 # Contributor tools, not user install options (ADR-0013). uv installs the

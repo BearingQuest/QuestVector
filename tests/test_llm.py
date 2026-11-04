@@ -20,6 +20,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from questvector.core.llm import (
+    ANTHROPIC_THINKING_OFF_MODELS,
     DEFAULT_OLLAMA_TIMEOUT,
     PROVIDERS,
     AnthropicNarrativeGenerator,
@@ -80,7 +81,7 @@ def test_generate_returns_text_from_mocked_client() -> None:
         mock_client = MagicMock()
         mock_anthropic_cls.return_value = mock_client
         mock_client.messages.create.return_value = SimpleNamespace(
-            content=[TextBlock(type="text", text="Tailored summary paragraph.")]
+            content=[TextBlock(type="text", text="Tailored summary paragraph.")], stop_reason="end_turn"
         )
 
         generator = AnthropicNarrativeGenerator(api_key="sk-test")
@@ -90,12 +91,75 @@ def test_generate_returns_text_from_mocked_client() -> None:
     mock_client.messages.create.assert_called_once()
 
 
+def _anthropic_create_kwargs(model: str) -> dict[str, object]:
+    """Run one mocked Anthropic generation and return the request's keyword arguments."""
+    from anthropic.types import TextBlock
+
+    with patch("anthropic.Anthropic") as mock_anthropic_cls:
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = SimpleNamespace(
+            content=[TextBlock(type="text", text="Summary.")], stop_reason="end_turn"
+        )
+
+        AnthropicNarrativeGenerator(api_key="sk-test", model=model).generate("some prompt")
+
+    return dict(mock_client.messages.create.call_args.kwargs)
+
+
+@requires_anthropic
+@pytest.mark.parametrize("model", sorted(ANTHROPIC_THINKING_OFF_MODELS))
+def test_generate_turns_thinking_off_for_models_that_think_by_default(model: str) -> None:
+    kwargs = _anthropic_create_kwargs(model)
+
+    assert kwargs["thinking"] == {"type": "between_tools"}
+
+
+@requires_anthropic
+def test_generate_sends_no_thinking_setting_to_other_models() -> None:
+    import anthropic
+
+    kwargs = _anthropic_create_kwargs("claude-other-test-model")
+
+    assert kwargs["thinking"] is anthropic.omit
+
+
+@requires_anthropic
+def test_generate_raises_clear_error_on_refusal_even_with_partial_text() -> None:
+    from anthropic.types import TextBlock
+
+    with patch("anthropic.Anthropic") as mock_anthropic_cls:
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = SimpleNamespace(
+            content=[TextBlock(type="text", text="Partial")], stop_reason="refusal"
+        )
+
+        generator = AnthropicNarrativeGenerator(api_key="sk-test")
+        with pytest.raises(LLMError, match="declined"):
+            generator.generate("some prompt")
+
+
+@requires_anthropic
+def test_generate_raises_clear_error_when_token_limit_hit_before_text() -> None:
+    with patch("anthropic.Anthropic") as mock_anthropic_cls:
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = SimpleNamespace(
+            content=[SimpleNamespace(type="thinking", thinking="")], stop_reason="max_tokens"
+        )
+
+        generator = AnthropicNarrativeGenerator(api_key="sk-test")
+        with pytest.raises(LLMError, match="600-token limit"):
+            generator.generate("some prompt")
+
+
 @requires_anthropic
 def test_generate_raises_on_empty_response_content() -> None:
     with patch("anthropic.Anthropic") as mock_anthropic_cls:
         mock_client = MagicMock()
         mock_anthropic_cls.return_value = mock_client
-        mock_client.messages.create.return_value = SimpleNamespace(content=[])
+        mock_client.messages.create.return_value = SimpleNamespace(content=[], stop_reason="end_turn")
 
         generator = AnthropicNarrativeGenerator(api_key="sk-test")
         with pytest.raises(LLMError):
@@ -108,7 +172,7 @@ def test_generate_raises_when_no_text_blocks_present() -> None:
         mock_client = MagicMock()
         mock_anthropic_cls.return_value = mock_client
         mock_client.messages.create.return_value = SimpleNamespace(
-            content=[SimpleNamespace(type="tool_use", text=None)]
+            content=[SimpleNamespace(type="tool_use", text=None)], stop_reason="end_turn"
         )
 
         generator = AnthropicNarrativeGenerator(api_key="sk-test")

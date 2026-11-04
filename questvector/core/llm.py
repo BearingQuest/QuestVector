@@ -86,6 +86,12 @@ DEFAULT_OLLAMA_HOST = "http://localhost:11434"
 # model can be slow to load and run, and waiting costs nothing.
 DEFAULT_OLLAMA_TIMEOUT = 300.0
 
+# Claude models that think by default and turn it off only with
+# ``thinking={"type": "between_tools"}``; other models reject that value, so
+# it is sent to these ids alone. Thinking would otherwise share the 600-token
+# limit with the answer. See docs/decisions/0018-anthropic-thinking-off.md.
+ANTHROPIC_THINKING_OFF_MODELS = frozenset({"claude-sonnet-5-5"})
+
 # Backward-compatible alias -- earlier versions of this module supported
 # only Anthropic, and named its default model plain ``DEFAULT_MODEL``.
 DEFAULT_MODEL = DEFAULT_ANTHROPIC_MODEL
@@ -266,6 +272,11 @@ class AnthropicNarrativeGenerator:
 
     Requires the optional ``anthropic`` dependency
     (``pip install questvector[llm-anthropic]``).
+
+    Thinking is switched off for the models in
+    :data:`ANTHROPIC_THINKING_OFF_MODELS`, which otherwise think by default
+    and can spend the token limit before answering. See
+    ``docs/decisions/0018-anthropic-thinking-off.md``.
     """
 
     def __init__(
@@ -310,7 +321,9 @@ class AnthropicNarrativeGenerator:
 
         Raises:
             LLMError: If the API call fails (network error, auth failure,
-                rate limit, or an unexpected/empty response).
+                rate limit, or an unexpected/empty response), the model
+                declines the request, or it hits the token limit before
+                writing any text.
         """
         import anthropic
         from anthropic.types import TextBlock
@@ -321,6 +334,11 @@ class AnthropicNarrativeGenerator:
                 max_tokens=self._max_tokens,
                 system=_NARRATIVE_SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": prompt}],
+                thinking=(
+                    {"type": "between_tools"}
+                    if self._model in ANTHROPIC_THINKING_OFF_MODELS
+                    else anthropic.omit
+                ),
             )
         except anthropic.APIError as exc:
             raise LLMError(
@@ -328,12 +346,21 @@ class AnthropicNarrativeGenerator:
                 context={"model": self._model},
             ) from exc
 
-        if not response.content:
-            raise LLMError("LLM returned an empty response", context={"model": self._model})
+        context: dict[str, object] = {"model": self._model, "stop_reason": response.stop_reason}
+        # A decline can arrive with partial text, so it is checked first.
+        if response.stop_reason == "refusal":
+            raise LLMError("The model declined to write this narrative", context=context)
 
         text_blocks = [block.text for block in response.content if isinstance(block, TextBlock)]
         if not text_blocks:
-            raise LLMError("LLM response contained no text content", context={"model": self._model})
+            if response.stop_reason == "max_tokens":
+                raise LLMError(
+                    f"The model hit its {self._max_tokens}-token limit before writing an answer",
+                    context=context,
+                )
+            if not response.content:
+                raise LLMError("LLM returned an empty response", context=context)
+            raise LLMError("LLM response contained no text content", context=context)
         return "\n".join(text_blocks).strip()
 
 
