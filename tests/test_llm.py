@@ -8,6 +8,7 @@ network call or requires a running Ollama server.
 from __future__ import annotations
 
 import importlib.util
+import inspect
 import io
 import json
 import sys
@@ -431,6 +432,22 @@ def test_only_ollama_is_marked_local() -> None:
 def test_only_ollama_does_not_require_api_key() -> None:
     assert PROVIDERS["ollama"].requires_api_key is False
     assert all(spec.requires_api_key for name, spec in PROVIDERS.items() if name != "ollama")
+
+
+@pytest.mark.parametrize(
+    ("provider", "generator_class"),
+    [
+        ("anthropic", AnthropicNarrativeGenerator),
+        ("openai", OpenAINarrativeGenerator),
+        ("gemini", GeminiNarrativeGenerator),
+    ],
+)
+def test_generator_default_model_matches_registry(provider: str, generator_class: type) -> None:
+    # Checks the link, not the model id, so a default change needs no test edit.
+    default = inspect.signature(generator_class.__init__).parameters["model"].default
+
+    assert default
+    assert default == PROVIDERS[provider].default_model
 
 
 def test_create_narrative_generator_unknown_provider_raises() -> None:

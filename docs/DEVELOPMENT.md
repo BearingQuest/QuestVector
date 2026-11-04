@@ -22,7 +22,7 @@ uv sync --all-extras               # creates .venv from uv.lock
 dependency group: pytest, mypy, pyflakes, and the type stubs mypy needs.
 `--all-extras` adds the three cloud AI provider SDKs (`[llm]`). Without it,
 the 16 tests that patch those SDKs skip with the reason shown; install it to
-run all 240 that run by default (the live Ollama test is opt-in; see below).
+run all 243 that run by default (the live Ollama test is opt-in; see below).
 Run commands with `uv run` (for example `uv run qv --version`), or
 `source .venv/bin/activate` first. Running the desktop app
 (`uv run python -m questvector.desktop.app`) also needs pywebview's platform
@@ -60,7 +60,7 @@ change the pin, and check `uv build` still succeeds with no warnings.
 Run all of these before opening a pull request:
 
 ```bash
-uv run pytest                                     # 241 tests: 240 run, 1 live test skipped (16 more skip without [llm])
+uv run pytest                                     # 244 tests: 243 run, 1 live test skipped (16 more skip without [llm])
 uv run pytest --cov=questvector                   # fails below 90% line coverage
 uv run mypy questvector                           # type checks; expect "no issues found"
 uv run pyflakes questvector tests                 # lint; expect no output
@@ -174,6 +174,27 @@ on synthetic data with thinking off, 20 Oct 2026 (none, against 3 of 5 for
 both llama3.1:8b and qwen3.5:9b-q4_K_M), on Ollama 0.40.6 on a 24 GB Mac, and is the default since 27 Oct 2026.
 QuestVector switches thinking off for every Ollama model
 ([ADR-0012](decisions/0012-ollama-thinking-off.md)).
+
+### Default models for remote providers
+
+Each remote default in `questvector/core/llm.py` is the replacement that the
+provider's deprecation page recommended when checked on 4 Nov 2026:
+
+| Provider | Default | Replaced | Source |
+|---|---|---|---|
+| Anthropic | `claude-sonnet-5-5` | `claude-sonnet-4-5`, retiring 30 Nov 2026 | [Model deprecations](https://platform.claude.com/docs/en/about-claude/model-deprecations) |
+| OpenAI | `gpt-6-luna` | `gpt-4o-mini`, shutting down 14 Jan 2027 | [Deprecations](https://developers.openai.com/api/docs/deprecations) |
+| Gemini | `gemini-3.6-flash` | `gemini-2.0-flash`, shut down 1 Jun 2026 | [Deprecations](https://aistudio.google.com/docs/deprecations) |
+
+OpenAI and Gemini are tested only with mocks. Both new defaults are
+reasoning models. Whether `gpt-6-luna` accepts `max_tokens` on Chat
+Completions, and whether either model's reasoning uses up the 600-token
+limit before it answers, hasn't been checked against a live API.
+
+A vault keeps the model it was set up with. A vault set up with an old
+default keeps sending that ID, and once the model is retired, generation
+fails with the provider's error. Run `qv vault set-key --provider <name>`
+again to store the new default, or pass `--model`.
 
 ## Project layout
 

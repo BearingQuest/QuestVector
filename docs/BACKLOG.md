@@ -143,6 +143,12 @@ dossier, since free tiers may use inputs for training. Deliverable: an opt-in
 live test (skipped by default, for example behind an environment variable)
 and a short how-to.
 
+Follow-up found 4 Nov 2026, not yet built: a vault keeps the model it was
+set up with, so a vault set up with a retired default (such as
+`gemini-2.0-flash`, shut down 1 Jun 2026) keeps sending it. Consider a
+one-line `qv` warning when the stored model is a known-retired ID. For now
+it is documented in `docs/DEVELOPMENT.md` and the CHANGELOG.
+
 ## 9. Install and configure a local LLM (Ollama) for learning and testing
 Partly done 20 Oct 2026 ([ADR-0012](decisions/0012-ollama-thinking-off.md)):
 Ollama 0.40.6 installed with llama3.1:8b, qwen3.5:9b-q4_K_M, and

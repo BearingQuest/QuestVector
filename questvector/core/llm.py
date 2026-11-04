@@ -75,9 +75,11 @@ from typing import Protocol
 
 from questvector.exceptions import LLMError
 
-DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-5"
-DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
-DEFAULT_GEMINI_MODEL = "gemini-2.0-flash"
+# Remote defaults follow each provider's recommended replacement on its
+# deprecation page (checked 4 Nov 2026; sources in docs/DEVELOPMENT.md).
+DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-5-5"
+DEFAULT_OPENAI_MODEL = "gpt-6-luna"
+DEFAULT_GEMINI_MODEL = "gemini-3.6-flash"
 DEFAULT_OLLAMA_MODEL = "gemma4:12b-it-q4_K_M"
 DEFAULT_OLLAMA_HOST = "http://localhost:11434"
 # Seconds to wait for a local Ollama response. Generous because a local
