@@ -249,6 +249,30 @@ def _redact(text: str, secret: str) -> str:
     return text.replace(secret, "[redacted]") if secret else text
 
 
+def _model_not_found_error(provider_id: str, model: str, detail: str, api_key: str) -> LLMError:
+    """Build the error for a model the provider says doesn't exist.
+
+    A model id retired since the vault was set up (see backlog item 8)
+    ends up here, so the message names the command that fixes it.
+
+    Args:
+        provider_id: The provider's key in :data:`PROVIDERS`.
+        model: The model id that was requested.
+        detail: The provider's own error message.
+        api_key: The API key, removed from ``detail`` before it's shown.
+
+    Returns:
+        An :class:`LLMError` naming the provider, the model and the fix.
+    """
+    return LLMError(
+        f"{PROVIDERS[provider_id].display_name} has no model '{model}', or this API key "
+        f"can't use it -- choose another with "
+        f"'qv vault set-key --provider {provider_id} --model NAME' "
+        f"(provider said: {_redact(detail, api_key)})",
+        context={"provider": provider_id, "model": model},
+    )
+
+
 class NarrativeGenerator(Protocol):
     """Interface for anything that can turn a prompt into narrative text."""
 
@@ -341,6 +365,8 @@ class AnthropicNarrativeGenerator:
                 ),
             )
         except anthropic.APIError as exc:
+            if isinstance(exc, anthropic.NotFoundError) and exc.type == "not_found_error":
+                raise _model_not_found_error("anthropic", self._model, str(exc), self._api_key) from exc
             raise LLMError(
                 f"LLM API call failed: {_redact(str(exc), self._api_key)}",
                 context={"model": self._model},
@@ -429,6 +455,8 @@ class OpenAINarrativeGenerator:
                 ],
             )
         except openai.OpenAIError as exc:
+            if isinstance(exc, openai.NotFoundError) and exc.code == "model_not_found":
+                raise _model_not_found_error("openai", self._model, str(exc), self._api_key) from exc
             raise LLMError(
                 f"LLM API call failed: {_redact(str(exc), self._api_key)}",
                 context={"model": self._model},
@@ -503,6 +531,8 @@ class GeminiNarrativeGenerator:
                 ),
             )
         except genai_errors.APIError as exc:
+            if isinstance(exc, genai_errors.ClientError) and exc.code == 404 and exc.status == "NOT_FOUND":
+                raise _model_not_found_error("gemini", self._model, str(exc), self._api_key) from exc
             raise LLMError(
                 f"LLM API call failed: {_redact(str(exc), self._api_key)}",
                 context={"model": self._model},

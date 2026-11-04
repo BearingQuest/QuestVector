@@ -310,6 +310,79 @@ def test_gemini_generate_wraps_api_error_as_llm_error() -> None:
             generator.generate("some prompt")
 
 
+# --- Model not found (all remote providers) --------------------------------
+
+# A plain word, not a real key prefix, so secret scanners don't flag it.
+_NOT_FOUND_KEY = "plainnotfoundkeymarker"
+
+
+def _model_not_found_error(provider: str, *, code: str = "model_not_found") -> Exception:
+    """Build each SDK's own "model not found" error, echoing the key in its message."""
+    message = f"model 'retired-model' not found for key {_NOT_FOUND_KEY}"
+    if provider == "anthropic":
+        import anthropic
+        import httpx2
+
+        request = httpx2.Request("POST", "https://api.anthropic.com/v1/messages")
+        body = {"type": "error", "error": {"type": "not_found_error", "message": message}}
+        return anthropic.NotFoundError(message, response=httpx2.Response(404, request=request), body=body)
+    if provider == "openai":
+        import httpx2
+        import openai
+
+        request = httpx2.Request("POST", "https://api.openai.com/v1/chat/completions")
+        body = {"message": message, "type": "invalid_request_error", "param": None, "code": code}
+        return openai.NotFoundError(message, response=httpx2.Response(404, request=request), body=body)
+    from google.genai import errors as genai_errors
+
+    return genai_errors.ClientError(404, {"error": {"code": 404, "message": message, "status": "NOT_FOUND"}})
+
+
+_REMOTE_PROVIDER_CALLS = [
+    pytest.param("anthropic", "anthropic.Anthropic", "messages.create", marks=requires_anthropic),
+    pytest.param("openai", "openai.OpenAI", "chat.completions.create", marks=requires_openai),
+    pytest.param("gemini", "google.genai.Client", "models.generate_content", marks=requires_gemini),
+]
+
+
+def _generate_with_error(provider: str, client_path: str, call: str, error: Exception) -> LLMError:
+    """Run one mocked generation whose SDK call raises ``error``; return the LLMError."""
+    with patch(client_path) as client_cls:
+        method = client_cls.return_value
+        for attribute in call.split("."):
+            method = getattr(method, attribute)
+        method.side_effect = error
+        generator = create_narrative_generator(provider, api_key=_NOT_FOUND_KEY, model="retired-model")
+        with pytest.raises(LLMError) as excinfo:
+            generator.generate("some prompt")
+    return excinfo.value
+
+
+@pytest.mark.parametrize(("provider", "client_path", "call"), _REMOTE_PROVIDER_CALLS)
+def test_model_not_found_names_provider_model_and_fix(provider: str, client_path: str, call: str) -> None:
+    sdk_error = _model_not_found_error(provider)
+    assert _NOT_FOUND_KEY in str(sdk_error)  # the SDK error really does echo it
+
+    error = _generate_with_error(provider, client_path, call, sdk_error)
+    message = str(error)
+
+    assert PROVIDERS[provider].display_name in message
+    assert "'retired-model'" in message
+    assert f"qv vault set-key --provider {provider} --model NAME" in message
+    assert _NOT_FOUND_KEY not in message
+    assert _NOT_FOUND_KEY not in repr(error.context)
+
+
+@requires_openai
+def test_openai_404_for_another_reason_stays_a_generic_api_error() -> None:
+    error = _generate_with_error(
+        "openai", "openai.OpenAI", "chat.completions.create", _model_not_found_error("openai", code="other_code")
+    )
+
+    assert "qv vault set-key" not in str(error)
+    assert _NOT_FOUND_KEY not in str(error)
+
+
 # --- Ollama (local) --------------------------------------------------------
 
 
