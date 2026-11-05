@@ -8,6 +8,7 @@ network call or requires a running Ollama server.
 from __future__ import annotations
 
 import importlib.util
+import inspect
 import io
 import json
 import sys
@@ -19,6 +20,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from questvector.core.llm import (
+    ANTHROPIC_THINKING_OFF_MODELS,
     DEFAULT_OLLAMA_TIMEOUT,
     PROVIDERS,
     AnthropicNarrativeGenerator,
@@ -79,7 +81,7 @@ def test_generate_returns_text_from_mocked_client() -> None:
         mock_client = MagicMock()
         mock_anthropic_cls.return_value = mock_client
         mock_client.messages.create.return_value = SimpleNamespace(
-            content=[TextBlock(type="text", text="Tailored summary paragraph.")]
+            content=[TextBlock(type="text", text="Tailored summary paragraph.")], stop_reason="end_turn"
         )
 
         generator = AnthropicNarrativeGenerator(api_key="sk-test")
@@ -89,12 +91,75 @@ def test_generate_returns_text_from_mocked_client() -> None:
     mock_client.messages.create.assert_called_once()
 
 
+def _anthropic_create_kwargs(model: str) -> dict[str, object]:
+    """Run one mocked Anthropic generation and return the request's keyword arguments."""
+    from anthropic.types import TextBlock
+
+    with patch("anthropic.Anthropic") as mock_anthropic_cls:
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = SimpleNamespace(
+            content=[TextBlock(type="text", text="Summary.")], stop_reason="end_turn"
+        )
+
+        AnthropicNarrativeGenerator(api_key="sk-test", model=model).generate("some prompt")
+
+    return dict(mock_client.messages.create.call_args.kwargs)
+
+
+@requires_anthropic
+@pytest.mark.parametrize("model", sorted(ANTHROPIC_THINKING_OFF_MODELS))
+def test_generate_turns_thinking_off_for_models_that_think_by_default(model: str) -> None:
+    kwargs = _anthropic_create_kwargs(model)
+
+    assert kwargs["thinking"] == {"type": "between_tools"}
+
+
+@requires_anthropic
+def test_generate_sends_no_thinking_setting_to_other_models() -> None:
+    import anthropic
+
+    kwargs = _anthropic_create_kwargs("claude-other-test-model")
+
+    assert kwargs["thinking"] is anthropic.omit
+
+
+@requires_anthropic
+def test_generate_raises_clear_error_on_refusal_even_with_partial_text() -> None:
+    from anthropic.types import TextBlock
+
+    with patch("anthropic.Anthropic") as mock_anthropic_cls:
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = SimpleNamespace(
+            content=[TextBlock(type="text", text="Partial")], stop_reason="refusal"
+        )
+
+        generator = AnthropicNarrativeGenerator(api_key="sk-test")
+        with pytest.raises(LLMError, match="declined"):
+            generator.generate("some prompt")
+
+
+@requires_anthropic
+def test_generate_raises_clear_error_when_token_limit_hit_before_text() -> None:
+    with patch("anthropic.Anthropic") as mock_anthropic_cls:
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = SimpleNamespace(
+            content=[SimpleNamespace(type="thinking", thinking="")], stop_reason="max_tokens"
+        )
+
+        generator = AnthropicNarrativeGenerator(api_key="sk-test")
+        with pytest.raises(LLMError, match="600-token limit"):
+            generator.generate("some prompt")
+
+
 @requires_anthropic
 def test_generate_raises_on_empty_response_content() -> None:
     with patch("anthropic.Anthropic") as mock_anthropic_cls:
         mock_client = MagicMock()
         mock_anthropic_cls.return_value = mock_client
-        mock_client.messages.create.return_value = SimpleNamespace(content=[])
+        mock_client.messages.create.return_value = SimpleNamespace(content=[], stop_reason="end_turn")
 
         generator = AnthropicNarrativeGenerator(api_key="sk-test")
         with pytest.raises(LLMError):
@@ -107,7 +172,7 @@ def test_generate_raises_when_no_text_blocks_present() -> None:
         mock_client = MagicMock()
         mock_anthropic_cls.return_value = mock_client
         mock_client.messages.create.return_value = SimpleNamespace(
-            content=[SimpleNamespace(type="tool_use", text=None)]
+            content=[SimpleNamespace(type="tool_use", text=None)], stop_reason="end_turn"
         )
 
         generator = AnthropicNarrativeGenerator(api_key="sk-test")
@@ -243,6 +308,79 @@ def test_gemini_generate_wraps_api_error_as_llm_error() -> None:
         generator = GeminiNarrativeGenerator(api_key="sk-test")
         with pytest.raises(LLMError):
             generator.generate("some prompt")
+
+
+# --- Model not found (all remote providers) --------------------------------
+
+# A plain word, not a real key prefix, so secret scanners don't flag it.
+_NOT_FOUND_KEY = "plainnotfoundkeymarker"
+
+
+def _model_not_found_error(provider: str, *, code: str = "model_not_found") -> Exception:
+    """Build each SDK's own "model not found" error, echoing the key in its message."""
+    message = f"model 'retired-model' not found for key {_NOT_FOUND_KEY}"
+    if provider == "anthropic":
+        import anthropic
+        import httpx2
+
+        request = httpx2.Request("POST", "https://api.anthropic.com/v1/messages")
+        body = {"type": "error", "error": {"type": "not_found_error", "message": message}}
+        return anthropic.NotFoundError(message, response=httpx2.Response(404, request=request), body=body)
+    if provider == "openai":
+        import httpx2
+        import openai
+
+        request = httpx2.Request("POST", "https://api.openai.com/v1/chat/completions")
+        body = {"message": message, "type": "invalid_request_error", "param": None, "code": code}
+        return openai.NotFoundError(message, response=httpx2.Response(404, request=request), body=body)
+    from google.genai import errors as genai_errors
+
+    return genai_errors.ClientError(404, {"error": {"code": 404, "message": message, "status": "NOT_FOUND"}})
+
+
+_REMOTE_PROVIDER_CALLS = [
+    pytest.param("anthropic", "anthropic.Anthropic", "messages.create", marks=requires_anthropic),
+    pytest.param("openai", "openai.OpenAI", "chat.completions.create", marks=requires_openai),
+    pytest.param("gemini", "google.genai.Client", "models.generate_content", marks=requires_gemini),
+]
+
+
+def _generate_with_error(provider: str, client_path: str, call: str, error: Exception) -> LLMError:
+    """Run one mocked generation whose SDK call raises ``error``; return the LLMError."""
+    with patch(client_path) as client_cls:
+        method = client_cls.return_value
+        for attribute in call.split("."):
+            method = getattr(method, attribute)
+        method.side_effect = error
+        generator = create_narrative_generator(provider, api_key=_NOT_FOUND_KEY, model="retired-model")
+        with pytest.raises(LLMError) as excinfo:
+            generator.generate("some prompt")
+    return excinfo.value
+
+
+@pytest.mark.parametrize(("provider", "client_path", "call"), _REMOTE_PROVIDER_CALLS)
+def test_model_not_found_names_provider_model_and_fix(provider: str, client_path: str, call: str) -> None:
+    sdk_error = _model_not_found_error(provider)
+    assert _NOT_FOUND_KEY in str(sdk_error)  # the SDK error really does echo it
+
+    error = _generate_with_error(provider, client_path, call, sdk_error)
+    message = str(error)
+
+    assert PROVIDERS[provider].display_name in message
+    assert "'retired-model'" in message
+    assert f"qv vault set-key --provider {provider} --model NAME" in message
+    assert _NOT_FOUND_KEY not in message
+    assert _NOT_FOUND_KEY not in repr(error.context)
+
+
+@requires_openai
+def test_openai_404_for_another_reason_stays_a_generic_api_error() -> None:
+    error = _generate_with_error(
+        "openai", "openai.OpenAI", "chat.completions.create", _model_not_found_error("openai", code="other_code")
+    )
+
+    assert "qv vault set-key" not in str(error)
+    assert _NOT_FOUND_KEY not in str(error)
 
 
 # --- Ollama (local) --------------------------------------------------------
@@ -431,6 +569,22 @@ def test_only_ollama_is_marked_local() -> None:
 def test_only_ollama_does_not_require_api_key() -> None:
     assert PROVIDERS["ollama"].requires_api_key is False
     assert all(spec.requires_api_key for name, spec in PROVIDERS.items() if name != "ollama")
+
+
+@pytest.mark.parametrize(
+    ("provider", "generator_class"),
+    [
+        ("anthropic", AnthropicNarrativeGenerator),
+        ("openai", OpenAINarrativeGenerator),
+        ("gemini", GeminiNarrativeGenerator),
+    ],
+)
+def test_generator_default_model_matches_registry(provider: str, generator_class: type) -> None:
+    # Checks the link, not the model id, so a default change needs no test edit.
+    default = inspect.signature(generator_class.__init__).parameters["model"].default
+
+    assert default
+    assert default == PROVIDERS[provider].default_model
 
 
 def test_create_narrative_generator_unknown_provider_raises() -> None:

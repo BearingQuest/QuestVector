@@ -90,10 +90,10 @@ PAGE_FILES = ("index.html", "core.html", "core.js", "steps.py", "files.html", "f
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 FIXTURES = {
-    "Capabilities.md": REPO / "tests/fixtures/ollama_live/Capabilities.md",
-    "Chronology.md": REPO / "tests/fixtures/ollama_live/Chronology.md",
-    "Impact.md": REPO / "tests/fixtures/ollama_live/Impact.md",
-    "job_description.txt": REPO / "tests/fixtures/ollama_live/job_description.txt",
+    "Capabilities.md": REPO / "tests/fixtures/live_narrative/Capabilities.md",
+    "Chronology.md": REPO / "tests/fixtures/live_narrative/Chronology.md",
+    "Impact.md": REPO / "tests/fixtures/live_narrative/Impact.md",
+    "job_description.txt": REPO / "tests/fixtures/live_narrative/job_description.txt",
     "v1-vault.json": REPO / "tests/fixtures/vault/v1-vault.json",
 }
 

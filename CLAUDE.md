@@ -42,9 +42,11 @@ Python core. Read these before changing anything:
 - **Record every change** under `[Unreleased]` in `CHANGELOG.md`; add a
   record in `docs/decisions/` for any significant design choice; update the
   PRD when a requirement changes; mark backlog items done when finished.
-- **Accuracy of public claims.** The README banner says the project has
-  never been tested against a live AI provider. Change it only per the exit
-  condition in backlog item 1.
+- **Accuracy of public claims.** The README banner and status table name
+  exactly which AI providers were tested live, with which model, date and
+  data, and which are tested with mocks only. Change that wording only after
+  a live run passes, and keep "proof of concept" until backlog item 1's exit
+  condition is fully met.
 
 ## Code conventions
 

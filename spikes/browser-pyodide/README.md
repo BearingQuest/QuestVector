@@ -53,7 +53,7 @@ numbers. Keep DevTools closed while timing, except where noted.
 
 ## Files page by hand (point 6)
 
-Make a scratch folder holding copies of `tests/fixtures/ollama_live/*.md`
+Make a scratch folder holding copies of `tests/fixtures/live_narrative/*.md`
 (synthetic). With the server running, open
 `http://127.0.0.1:8765/files.html` in each browser. The "What this browser
 supports" table is filled in automatically.

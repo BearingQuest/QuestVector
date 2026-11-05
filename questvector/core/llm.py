@@ -75,14 +75,22 @@ from typing import Protocol
 
 from questvector.exceptions import LLMError
 
-DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-5"
-DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
-DEFAULT_GEMINI_MODEL = "gemini-2.0-flash"
+# Remote defaults follow each provider's recommended replacement on its
+# deprecation page (checked 4 Nov 2026; sources in docs/DEVELOPMENT.md).
+DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-5-5"
+DEFAULT_OPENAI_MODEL = "gpt-6-luna"
+DEFAULT_GEMINI_MODEL = "gemini-3.6-flash"
 DEFAULT_OLLAMA_MODEL = "gemma4:12b-it-q4_K_M"
 DEFAULT_OLLAMA_HOST = "http://localhost:11434"
 # Seconds to wait for a local Ollama response. Generous because a local
 # model can be slow to load and run, and waiting costs nothing.
 DEFAULT_OLLAMA_TIMEOUT = 300.0
+
+# Claude models that think by default and turn it off only with
+# ``thinking={"type": "between_tools"}``; other models reject that value, so
+# it is sent to these ids alone. Thinking would otherwise share the 600-token
+# limit with the answer. See docs/decisions/0018-anthropic-thinking-off.md.
+ANTHROPIC_THINKING_OFF_MODELS = frozenset({"claude-sonnet-5-5"})
 
 # Backward-compatible alias -- earlier versions of this module supported
 # only Anthropic, and named its default model plain ``DEFAULT_MODEL``.
@@ -241,6 +249,30 @@ def _redact(text: str, secret: str) -> str:
     return text.replace(secret, "[redacted]") if secret else text
 
 
+def _model_not_found_error(provider_id: str, model: str, detail: str, api_key: str) -> LLMError:
+    """Build the error for a model the provider says doesn't exist.
+
+    A model id retired since the vault was set up (see backlog item 8)
+    ends up here, so the message names the command that fixes it.
+
+    Args:
+        provider_id: The provider's key in :data:`PROVIDERS`.
+        model: The model id that was requested.
+        detail: The provider's own error message.
+        api_key: The API key, removed from ``detail`` before it's shown.
+
+    Returns:
+        An :class:`LLMError` naming the provider, the model and the fix.
+    """
+    return LLMError(
+        f"{PROVIDERS[provider_id].display_name} has no model '{model}', or this API key "
+        f"can't use it -- choose another with "
+        f"'qv vault set-key --provider {provider_id} --model NAME' "
+        f"(provider said: {_redact(detail, api_key)})",
+        context={"provider": provider_id, "model": model},
+    )
+
+
 class NarrativeGenerator(Protocol):
     """Interface for anything that can turn a prompt into narrative text."""
 
@@ -264,6 +296,11 @@ class AnthropicNarrativeGenerator:
 
     Requires the optional ``anthropic`` dependency
     (``pip install questvector[llm-anthropic]``).
+
+    Thinking is switched off for the models in
+    :data:`ANTHROPIC_THINKING_OFF_MODELS`, which otherwise think by default
+    and can spend the token limit before answering. See
+    ``docs/decisions/0018-anthropic-thinking-off.md``.
     """
 
     def __init__(
@@ -308,7 +345,9 @@ class AnthropicNarrativeGenerator:
 
         Raises:
             LLMError: If the API call fails (network error, auth failure,
-                rate limit, or an unexpected/empty response).
+                rate limit, or an unexpected/empty response), the model
+                declines the request, or it hits the token limit before
+                writing any text.
         """
         import anthropic
         from anthropic.types import TextBlock
@@ -319,19 +358,35 @@ class AnthropicNarrativeGenerator:
                 max_tokens=self._max_tokens,
                 system=_NARRATIVE_SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": prompt}],
+                thinking=(
+                    {"type": "between_tools"}
+                    if self._model in ANTHROPIC_THINKING_OFF_MODELS
+                    else anthropic.omit
+                ),
             )
         except anthropic.APIError as exc:
+            if isinstance(exc, anthropic.NotFoundError) and exc.type == "not_found_error":
+                raise _model_not_found_error("anthropic", self._model, str(exc), self._api_key) from exc
             raise LLMError(
                 f"LLM API call failed: {_redact(str(exc), self._api_key)}",
                 context={"model": self._model},
             ) from exc
 
-        if not response.content:
-            raise LLMError("LLM returned an empty response", context={"model": self._model})
+        context: dict[str, object] = {"model": self._model, "stop_reason": response.stop_reason}
+        # A decline can arrive with partial text, so it is checked first.
+        if response.stop_reason == "refusal":
+            raise LLMError("The model declined to write this narrative", context=context)
 
         text_blocks = [block.text for block in response.content if isinstance(block, TextBlock)]
         if not text_blocks:
-            raise LLMError("LLM response contained no text content", context={"model": self._model})
+            if response.stop_reason == "max_tokens":
+                raise LLMError(
+                    f"The model hit its {self._max_tokens}-token limit before writing an answer",
+                    context=context,
+                )
+            if not response.content:
+                raise LLMError("LLM returned an empty response", context=context)
+            raise LLMError("LLM response contained no text content", context=context)
         return "\n".join(text_blocks).strip()
 
 
@@ -400,6 +455,8 @@ class OpenAINarrativeGenerator:
                 ],
             )
         except openai.OpenAIError as exc:
+            if isinstance(exc, openai.NotFoundError) and exc.code == "model_not_found":
+                raise _model_not_found_error("openai", self._model, str(exc), self._api_key) from exc
             raise LLMError(
                 f"LLM API call failed: {_redact(str(exc), self._api_key)}",
                 context={"model": self._model},
@@ -474,6 +531,8 @@ class GeminiNarrativeGenerator:
                 ),
             )
         except genai_errors.APIError as exc:
+            if isinstance(exc, genai_errors.ClientError) and exc.code == 404 and exc.status == "NOT_FOUND":
+                raise _model_not_found_error("gemini", self._model, str(exc), self._api_key) from exc
             raise LLMError(
                 f"LLM API call failed: {_redact(str(exc), self._api_key)}",
                 context={"model": self._model},

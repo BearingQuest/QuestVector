@@ -210,11 +210,19 @@ Acceptance criteria use EARS-style phrasing.
 
 **R15 — Live provider testing at no cost.** **Partly built.**
 - The test suite SHALL include opt-in live tests, skipped by default, for at
-  least one remote provider on a free tier and for a local Ollama model.
-- Live tests against remote providers SHALL use synthetic data only.
+  least one remote provider at no extra cost (a free tier or already-paid
+  API credits) and for a local Ollama model.
+- Live tests against remote providers SHALL use synthetic data only, and
+  SHALL never print, log, or report the API key.
 - Built: the local Ollama live test (`tests/test_ollama_live.py`), on
   synthetic data, skipped unless `QV_OLLAMA_LIVE=1`.
-- Planned (backlog item 8): the remote-provider live test.
+- Built: the remote-provider live test (`tests/test_remote_live.py`), on the
+  same synthetic data, skipped unless `QV_LIVE_PROVIDERS` names the
+  provider. It supports Anthropic, OpenAI and Gemini.
+- Done (backlog item 8): the owner's live run against Anthropic
+  (`claude-sonnet-5-5`, synthetic data, included API credits) passed on
+  5 Nov 2026.
+- Planned: a live run against Gemini on Google AI Studio's free tier.
 
 ### 5.6 Vault
 
@@ -344,7 +352,8 @@ phase f).
 2. All CI checks green on `main`; required checks enforced by branch
    protection.
 3. Narrative generation run end to end with a real local Ollama model and at
-   least one free-tier remote provider; results recorded.
+   least one remote provider at no extra cost (a free tier or already-paid
+   API credits); results recorded.
 4. README, spec, PRD, and `CHANGELOG.md` agree, and "never been tested"
    wording is replaced per backlog item 1's exit condition.
 5. The owner has run a full cycle with their own dossier: launch, match,

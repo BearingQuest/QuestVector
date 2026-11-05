@@ -1593,8 +1593,8 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "anthropic", marker = "extra == 'llm'", specifier = ">=0.40" },
-    { name = "anthropic", marker = "extra == 'llm-anthropic'", specifier = ">=0.40" },
+    { name = "anthropic", marker = "extra == 'llm'", specifier = ">=2.0" },
+    { name = "anthropic", marker = "extra == 'llm-anthropic'", specifier = ">=2.0" },
     { name = "cryptography", specifier = ">=42.0" },
     { name = "google-genai", marker = "extra == 'llm'", specifier = ">=0.3" },
     { name = "google-genai", marker = "extra == 'llm-gemini'", specifier = ">=0.3" },

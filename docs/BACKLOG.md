@@ -16,6 +16,11 @@ or drift. Known starting points:
   partly true: the code is unit-tested with mocked AI providers, but narrative
   generation has never run against a live provider, because paid API access
   wasn't an option. Reword both to say exactly that. Items 8 and 9 close the gap.
+  **Done for the README (5 Nov 2026):** the banner and status table name the
+  providers tested live (Ollama with gemma4:12b-it-q4_K_M; Anthropic with
+  claude-sonnet-5-5 on synthetic data), keep OpenAI and Gemini labeled as
+  tested with mocks only, and keep "proof of concept". The exit condition
+  below is met for the README; `docs/QuestVector_Spec.pdf` waits for item 3.
 - **Exit condition (agreed 15 Oct):** once items 8 and 9 pass, remove "never
   been tested" everywhere: the README banner, status table, and
   `docs/QuestVector_Spec.pdf`. Replace it with what was actually verified,
@@ -115,6 +120,13 @@ follow yet. Evaluate adopting:
   overused words.
 - Narrative prompt guardrails: no invented metrics, titles, or technology
   claims, and no pronoun leaks.
+- **The narrative must contain only the summary.** Found 5 Nov 2026 in the
+  Anthropic live run (item 8): after an accurate summary, claude-sonnet-5-5
+  appended an italic note saying it didn't claim Datadog, HashiCorp Vault or
+  SOC 2. It's honest, but it isn't summary text, and in a real export it
+  would land in the resume with the trap keywords in it. Notes or
+  explanations after the summary must be stripped or flagged for the user
+  (prompt instruction, output check, or both), with a test.
 Also look for gaps beyond ATS, such as cover-letter output and job-fit reads.
 
 ## 6. MCP servers and tooling for code quality and coverage
@@ -129,6 +141,18 @@ Originally "Further topics to discuss"; now item 11. Numbers are kept
 stable so references elsewhere stay valid.
 
 ## 8. Live-test narrative generation through an API at no cost
+✅ Done for Anthropic, 5 Nov 2026: the owner ran `tests/test_remote_live.py`
+with `QV_LIVE_PROVIDERS=anthropic` and `claude-sonnet-5-5` on the synthetic
+fixtures, using included API credits with auto-reload off. It passed (5
+passed, 2 skipped, 4.32 s): an answer came back within 600 tokens with
+thinking off ([ADR-0018](decisions/0018-anthropic-thinking-off.md)), in the
+first person, with no preamble and no invented facts. The model appended a
+note after the summary; see item 5. How-to: `docs/DEVELOPMENT.md`, "Live test
+against a remote provider". Still open: Gemini on Google AI Studio's free
+tier (the test already supports `QV_LIVE_PROVIDERS=gemini`), as its own
+pull request.
+
+Original scope:
 The 13 provider tests use mocked clients; no real API call has ever been
 made. Find a no-cost way to run end-to-end tests against a real remote
 provider. Options to research (verify current terms before relying on any):
@@ -142,6 +166,14 @@ free-tier rate limits, and send only synthetic test data, never the real
 dossier, since free tiers may use inputs for training. Deliverable: an opt-in
 live test (skipped by default, for example behind an environment variable)
 and a short how-to.
+
+Follow-up found 4 Nov 2026, not yet built: a vault keeps the model it was
+set up with, so a vault set up with a retired default (such as
+`gemini-2.0-flash`, shut down 1 Jun 2026) keeps sending it. Consider a
+one-line `qv` warning when the stored model is a known-retired ID. For now
+it is documented in `docs/DEVELOPMENT.md` and the CHANGELOG. Item 18's
+weekly check is the owner-facing counterpart: it flags a retired default
+before users hit it.
 
 ## 9. Install and configure a local LLM (Ollama) for learning and testing
 Partly done 20 Oct 2026 ([ADR-0012](decisions/0012-ollama-thinking-off.md)):
@@ -463,3 +495,35 @@ When it exists:
   in the pull request body, because `gh pr create --body` skips the template.
 - Record the change in `CHANGELOG.md`. Add an ADR only if the tailoring
   makes a design choice worth recording.
+
+## 18. Weekly check for retired default models
+Decided 4 Nov 2026 (owner). Build after item 8. A provider can deprecate or
+shut down a default model with little notice: when checked on 4 Nov 2026,
+the Gemini default had been shut down since 1 Jun 2026, and the Anthropic
+default was due to retire within the month. This check tells the owner
+ahead of time; item 8's planned retired-model warning tells a user at run
+time. They do different jobs, and both are wanted.
+
+What it runs on:
+- A GitHub Actions workflow on a weekly schedule, plus `workflow_dispatch`
+  to run it by hand. Never on pull requests, so it isn't a required check
+  and `.github/rulesets/main.json` doesn't change (ADR-0011).
+- **ADR-0001 check:** ADR-0001 is about what the app does, and the app
+  still makes no new network calls. CI already uses the network (setup-uv,
+  pip-audit), so a CI-only job that reads public web pages is allowed.
+
+What it checks and does:
+- Reads the three providers' official deprecation pages, the ones listed in
+  `docs/DEVELOPMENT.md` under "Default models for remote providers", and
+  checks each default model ID in `questvector/core/llm.py`.
+- If a default is listed as deprecated or shut down, it opens a GitHub
+  issue, or updates the open one, with the model, the date, and the source
+  link.
+- If it can't fetch or read a page, it opens an issue saying so, rather
+  than passing quietly.
+- No API keys. Permissions: `contents: read` and `issues: write` only.
+  Actions pinned to commit SHAs (`tests/test_workflows.py` enforces this),
+  `ubuntu-24.04`, and a job timeout.
+
+Candidate, not decided: the scheduled pip-audit proposed on 3 Nov 2026
+could share this workflow.

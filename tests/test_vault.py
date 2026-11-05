@@ -42,7 +42,7 @@ def test_vault_data_stores_multiple_provider_keys_side_by_side(tmp_path: Path) -
     data = VaultData(
         llm_provider="openai",
         llm_api_keys={"anthropic": "sk-ant", "openai": "sk-oai"},
-        llm_model="gpt-4o-mini",
+        llm_model="test-model",
     )
 
     save_vault(path, "pass", data)
@@ -52,7 +52,7 @@ def test_vault_data_stores_multiple_provider_keys_side_by_side(tmp_path: Path) -
     assert loaded.api_key_for("openai") == "sk-oai"
     assert loaded.api_key_for("anthropic") == "sk-ant"
     assert loaded.api_key_for("gemini") is None
-    assert loaded.llm_model == "gpt-4o-mini"
+    assert loaded.llm_model == "test-model"
 
 
 def test_vault_data_ollama_needs_no_api_key(tmp_path: Path) -> None:

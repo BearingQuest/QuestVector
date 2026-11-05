@@ -1,5 +1,5 @@
 # 🚀 QuestVector
-### *This is a proof of concept project which has never been tested. Use at your own risk*
+### *This is a proof of concept project. Narrative generation has been tested live only with Ollama (gemma4:12b-it-q4_K_M) and Anthropic (claude-sonnet-5-5, 5 Nov 2026, synthetic data); OpenAI and Gemini are tested with mocks only. Use at your own risk*
 ### *Command your job search with a local-only, privacy-first career flight deck. Score your career history against job descriptions, find the gaps, and own your career data.*
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-purple.svg)](https://opensource.org/licenses/MIT)
@@ -13,7 +13,7 @@ This repo describes **two** ways to run QuestVector, but only one of them has be
 
 | | Python Desktop (this build) | Browser app |
 |---|---|---|
-| **Status** | ✅ Implemented and runs today; unit-tested with simulated AI providers, not yet against a live one | 🚧 Planned — no code exists yet ([ADR-0016](docs/decisions/0016-browser-app-static-pages.md)) |
+| **Status** | ✅ Implemented and runs today; unit-tested with simulated AI providers; narrative generation tested live with Ollama (gemma4:12b-it-q4_K_M) and Anthropic (claude-sonnet-5-5, 5 Nov 2026, synthetic data); OpenAI and Gemini tested with mocks only | 🚧 Planned — no code exists yet ([ADR-0016](docs/decisions/0016-browser-app-static-pages.md)) |
 | Stack | Pure Python core + `qv` CLI + pywebview shell | The same Python core, running in the browser through Pyodide; static files only |
 | Distribution | Wheel from [GitHub Releases](https://github.com/dustenatx/QuestVector/releases), or clone; `pip install` (Python 3.14) and run locally | This repository's GitHub Pages site, deployed only from the owner's release tags (see [Roadmap](#-roadmap-browser-app-not-yet-built) below) |
 | Storage | Local filesystem + AES-256-GCM encrypted vault file | A folder you choose (Chrome; Edge expected but not yet tested) or the browser's own storage (Safari, Firefox) |
@@ -107,10 +107,10 @@ Matching is by keyword, so use the terms a job description would use (for exampl
 The test tools come with the contributor setup (uv; see [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md)):
 ```bash
 uv sync --all-extras
-uv run pytest                                   # 241 tests
+uv run pytest                                   # 259 tests
 uv run pytest --cov=questvector --cov-report=term-missing
 ```
-16 of the tests exercise the cloud AI providers and need their SDKs installed (`[llm]`); without them those tests skip with the reason shown. One opt-in live test runs against a local Ollama server and is skipped unless you turn it on (see `docs/DEVELOPMENT.md`). GitHub Actions runs the suite, type checks, and lint on every pull request. Linting, type checks, and the full contributor workflow are in [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md).
+24 of the tests exercise the cloud AI providers and need their SDKs installed (`[llm]`); without them those tests skip with the reason shown. Opt-in live tests run against a local Ollama server and against remote providers; they're skipped unless you turn them on (see `docs/DEVELOPMENT.md`). GitHub Actions runs the suite, type checks, and lint on every pull request. Linting, type checks, and the full contributor workflow are in [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md).
 
 ### Version
 ```bash
