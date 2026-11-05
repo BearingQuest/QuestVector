@@ -36,6 +36,10 @@ Python core. Read these before changing anything:
   required checks and aren't listed there.
 - **Releases (ADR-0014).** Only the owner creates and pushes `v*` tags;
   never create, push, or delete one.
+- **Agent guardrails (ADR-0019).** `.claude/settings.json` turns off auto
+  and bypass-permissions modes, denies the human gates (merge, review, tag,
+  release) and asks before pushes and API calls. Keep every rule, add no
+  allow rules there, and update `tests/test_agent_rules.py` with any change.
 - **Pin actions to commit SHAs** with a version comment
   (`uses: owner/action@<sha> # vX.Y.Z`); never a bare tag.
   `tests/test_workflows.py` enforces this for every workflow.

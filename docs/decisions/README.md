@@ -30,3 +30,4 @@ and README. Their dates are the date each decision first appears in the repo.
 | [0016](0016-browser-app-static-pages.md) | Browser app served as static files from GitHub Pages | Accepted | 2026-10-28 |
 | [0017](0017-bearing-quest-design-base.md) | Adopt the Bearing Quest design base | Accepted | 2026-10-29 |
 | [0018](0018-anthropic-thinking-off.md) | Anthropic requests switch thinking off for models that think by default | Accepted | 2026-11-04 |
+| [0019](0019-agent-permission-guardrails.md) | Shared Claude Code settings lock agent modes and deny the human gates | Accepted | 2026-11-05 |
