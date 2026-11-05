@@ -62,5 +62,13 @@ in QuestVector's calls needed changing for 2.x.
   and omitted for any other.
 - Server-side refusal fallback (a beta that retries a declined request on
   another model) is not used. A decline is reported to the user instead.
-- Not verified live when written. Backlog item 8's opt-in live test is the
-  check, and its result should be added here.
+- **Live result, 5 Nov 2026:** the owner ran backlog item 8's opt-in live
+  test against `claude-sonnet-5-5` on the synthetic fixtures. Thinking off
+  worked: the request was accepted, and an answer came back within the
+  600-token limit, in the first person with no invented facts.
+- **Finding from that run:** after the summary, the model appended an
+  italic note saying it didn't claim Datadog, HashiCorp Vault or SOC 2 (the
+  fixture's trap keywords). It isn't summary text, and in a real export it
+  would put those keywords in the resume. This decision doesn't cause or fix
+  it; it's recorded in backlog item 5 (the narrative must contain only the
+  summary).

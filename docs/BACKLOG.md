@@ -16,6 +16,11 @@ or drift. Known starting points:
   partly true: the code is unit-tested with mocked AI providers, but narrative
   generation has never run against a live provider, because paid API access
   wasn't an option. Reword both to say exactly that. Items 8 and 9 close the gap.
+  **Done for the README (5 Nov 2026):** the banner and status table name the
+  providers tested live (Ollama with gemma4:12b-it-q4_K_M; Anthropic with
+  claude-sonnet-5-5 on synthetic data), keep OpenAI and Gemini labeled as
+  tested with mocks only, and keep "proof of concept". The exit condition
+  below is met for the README; `docs/QuestVector_Spec.pdf` waits for item 3.
 - **Exit condition (agreed 15 Oct):** once items 8 and 9 pass, remove "never
   been tested" everywhere: the README banner, status table, and
   `docs/QuestVector_Spec.pdf`. Replace it with what was actually verified,
@@ -115,6 +120,13 @@ follow yet. Evaluate adopting:
   overused words.
 - Narrative prompt guardrails: no invented metrics, titles, or technology
   claims, and no pronoun leaks.
+- **The narrative must contain only the summary.** Found 5 Nov 2026 in the
+  Anthropic live run (item 8): after an accurate summary, claude-sonnet-5-5
+  appended an italic note saying it didn't claim Datadog, HashiCorp Vault or
+  SOC 2. It's honest, but it isn't summary text, and in a real export it
+  would land in the resume with the trap keywords in it. Notes or
+  explanations after the summary must be stripped or flagged for the user
+  (prompt instruction, output check, or both), with a test.
 Also look for gaps beyond ATS, such as cover-letter output and job-fit reads.
 
 ## 6. MCP servers and tooling for code quality and coverage
@@ -129,6 +141,18 @@ Originally "Further topics to discuss"; now item 11. Numbers are kept
 stable so references elsewhere stay valid.
 
 ## 8. Live-test narrative generation through an API at no cost
+✅ Done for Anthropic, 5 Nov 2026: the owner ran `tests/test_remote_live.py`
+with `QV_LIVE_PROVIDERS=anthropic` and `claude-sonnet-5-5` on the synthetic
+fixtures, using included API credits with auto-reload off. It passed (5
+passed, 2 skipped, 4.32 s): an answer came back within 600 tokens with
+thinking off ([ADR-0018](decisions/0018-anthropic-thinking-off.md)), in the
+first person, with no preamble and no invented facts. The model appended a
+note after the summary; see item 5. How-to: `docs/DEVELOPMENT.md`, "Live test
+against a remote provider". Still open: Gemini on Google AI Studio's free
+tier (the test already supports `QV_LIVE_PROVIDERS=gemini`), as its own
+pull request.
+
+Original scope:
 The 13 provider tests use mocked clients; no real API call has ever been
 made. Find a no-cost way to run end-to-end tests against a real remote
 provider. Options to research (verify current terms before relying on any):

@@ -219,8 +219,9 @@ Acceptance criteria use EARS-style phrasing.
 - Built: the remote-provider live test (`tests/test_remote_live.py`), on the
   same synthetic data, skipped unless `QV_LIVE_PROVIDERS` names the
   provider. It supports Anthropic, OpenAI and Gemini.
-- Pending (backlog item 8): a passing live run against Anthropic, on the
-  owner's included API credits.
+- Done (backlog item 8): the owner's live run against Anthropic
+  (`claude-sonnet-5-5`, synthetic data, included API credits) passed on
+  5 Nov 2026.
 - Planned: a live run against Gemini on Google AI Studio's free tier.
 
 ### 5.6 Vault
@@ -351,7 +352,8 @@ phase f).
 2. All CI checks green on `main`; required checks enforced by branch
    protection.
 3. Narrative generation run end to end with a real local Ollama model and at
-   least one free-tier remote provider; results recorded.
+   least one remote provider at no extra cost (a free tier or already-paid
+   API credits); results recorded.
 4. README, spec, PRD, and `CHANGELOG.md` agree, and "never been tested"
    wording is replaced per backlog item 1's exit condition.
 5. The owner has run a full cycle with their own dossier: launch, match,
