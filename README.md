@@ -1,5 +1,5 @@
 # 🚀 QuestVector
-### *This is a proof of concept project. Narrative generation has been tested live only with Ollama (gemma4:12b-it-q4_K_M) and Anthropic (claude-sonnet-5-5, 5 Nov 2026, synthetic data); OpenAI and Gemini are tested with mocks only. Use at your own risk*
+### * This is a proof of concept project. Narrative generation has been tested live only with Ollama (gemma4:12b-it-q4_K_M) and Anthropic (claude-sonnet-5-5, 5 Nov 2026, synthetic data); OpenAI and Gemini are tested with mocks only. Use at your own risk*
 ### *Command your job search with a local-only, privacy-first career flight deck. Score your career history against job descriptions, find the gaps, and own your career data.*
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-purple.svg)](https://opensource.org/licenses/MIT)
