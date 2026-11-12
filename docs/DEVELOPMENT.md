@@ -13,7 +13,7 @@ Homebrew: `brew install python@3.14 uv`. uv can also download Python 3.14
 itself.
 
 ```bash
-git clone https://github.com/dustenatx/QuestVector.git
+git clone https://github.com/BearingQuest/questvector.git
 cd QuestVector
 uv sync --all-extras               # creates .venv from uv.lock
 ```
@@ -100,8 +100,8 @@ applying it to the live ruleset (the owner runs this; it needs admin
 rights):
 
 ```bash
-gh api repos/dustenatx/QuestVector/rulesets --jq '.[] | select(.name=="main") | .id'
-gh api -X PUT repos/dustenatx/QuestVector/rulesets/<id> --input .github/rulesets/main.json
+gh api repos/BearingQuest/questvector/rulesets --jq '.[] | select(.name=="main") | .id'
+gh api -X PUT repos/BearingQuest/questvector/rulesets/<id> --input .github/rulesets/main.json
 ```
 
 When a pull request renames a required check, the old name never reports,
@@ -109,7 +109,7 @@ so that pull request can't merge under the old ruleset. The order is:
 1. Wait for the pull request's new checks to pass.
 2. Apply the pull request's `main.json` to the live ruleset (from the
    branch, for example `git show origin/<branch>:.github/rulesets/main.json
-   | gh api -X PUT repos/dustenatx/QuestVector/rulesets/<id> --input -`).
+   | gh api -X PUT repos/BearingQuest/questvector/rulesets/<id> --input -`).
 3. Merge the pull request.
 
 Other open pull requests then wait on the new names until rebased.
@@ -314,9 +314,9 @@ tags.
   by id:
 
   ```bash
-  gh api -X POST repos/dustenatx/QuestVector/rulesets --input .github/rulesets/tags.json
-  gh api repos/dustenatx/QuestVector/rulesets --jq '.[] | select(.name=="release-tags") | .id'
-  gh api -X PUT repos/dustenatx/QuestVector/rulesets/<id> --input .github/rulesets/tags.json
+  gh api -X POST repos/BearingQuest/questvector/rulesets --input .github/rulesets/tags.json
+  gh api repos/BearingQuest/questvector/rulesets --jq '.[] | select(.name=="release-tags") | .id'
+  gh api -X PUT repos/BearingQuest/questvector/rulesets/<id> --input .github/rulesets/tags.json
   ```
 
 **Each release:**
@@ -342,9 +342,13 @@ tags.
    ```bash
    gh release download vX.Y.Z --dir /tmp/qv-X.Y.Z && cd /tmp/qv-X.Y.Z
    shasum -a 256 -c SHA256SUMS
-   gh attestation verify questvector-X.Y.Z-py3-none-any.whl --repo dustenatx/QuestVector
-   gh attestation verify questvector-X.Y.Z.tar.gz --repo dustenatx/QuestVector
+   gh attestation verify questvector-X.Y.Z-py3-none-any.whl --repo BearingQuest/questvector
+   gh attestation verify questvector-X.Y.Z.tar.gz --repo BearingQuest/questvector
    ```
+
+   These are for releases built after the move to BearingQuest and are
+   unconfirmed until the first one is verified. v1.1.0 verifies differently;
+   see "Install from a release" in the README.
 
 **If the run fails:**
 - Before the publish step, nothing is public. Delete the draft if one was

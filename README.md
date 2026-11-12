@@ -15,12 +15,12 @@ This repo describes **two** ways to run QuestVector, but only one of them has be
 |---|---|---|
 | **Status** | ✅ Implemented and runs today; unit-tested with simulated AI providers; narrative generation tested live with Ollama (gemma4:12b-it-q4_K_M) and Anthropic (claude-sonnet-5-5, 5 Nov 2026, synthetic data); OpenAI and Gemini tested with mocks only | 🚧 Planned — no code exists yet ([ADR-0016](docs/decisions/0016-browser-app-static-pages.md)) |
 | Stack | Pure Python core + `qv` CLI + pywebview shell | The same Python core, running in the browser through Pyodide; static files only |
-| Distribution | Wheel from [GitHub Releases](https://github.com/dustenatx/QuestVector/releases), or clone; `pip install` (Python 3.14) and run locally | This repository's GitHub Pages site, deployed only from the owner's release tags (see [Roadmap](#-roadmap-browser-app-not-yet-built) below) |
+| Distribution | Wheel from [GitHub Releases](https://github.com/BearingQuest/questvector/releases), or clone; `pip install` (Python 3.14) and run locally | This repository's GitHub Pages site, deployed only from the owner's release tags (see [Roadmap](#-roadmap-browser-app-not-yet-built) below) |
 | Storage | Local filesystem + AES-256-GCM encrypted vault file | A folder you choose (Chrome; Edge expected but not yet tested) or the browser's own storage (Safari, Firefox) |
 
 **If you just want to use QuestVector today, skip straight to [Quickstart](#-quickstart) below — it's all Python.** The Browser app section further down is a roadmap, not a tutorial.
 
-**Distribution policy for this project: the only things published are release files on this repository's [GitHub Releases](https://github.com/dustenatx/QuestVector/releases)** (a wheel, a source archive, and their checksums; [ADR-0014](docs/decisions/0014-github-releases.md)) **and, once built, the browser app's static files on this repository's GitHub Pages site** ([ADR-0016](docs/decisions/0016-browser-app-static-pages.md)). The Pages site is static files only: no backend, no accounts, no data collection. No custom domain, no other hosted service, no PyPI or npm-registry package, ever. The desktop build runs entirely from local files — a deliberate decision, not a temporary gap.
+**Distribution policy for this project: the only things published are release files on this repository's [GitHub Releases](https://github.com/BearingQuest/questvector/releases)** (a wheel, a source archive, and their checksums; [ADR-0014](docs/decisions/0014-github-releases.md)) **and, once built, the browser app's static files on this repository's GitHub Pages site** ([ADR-0016](docs/decisions/0016-browser-app-static-pages.md)). The Pages site is static files only: no backend, no accounts, no data collection. No custom domain, no other hosted service, no PyPI or npm-registry package, ever. The desktop build runs entirely from local files — a deliberate decision, not a temporary gap.
 
 Both run the same Python core, so the same dossier, job description, and template give the same score in either.
 
@@ -34,14 +34,23 @@ Requires **Python 3.14** (on macOS: `brew install python@3.14`).
 
 ### Install from a release
 
-Releases are marked **pre-release** while this is a proof of concept. Download the wheel (`questvector-<version>-py3-none-any.whl`) and `SHA256SUMS` from the [Releases page](https://github.com/dustenatx/QuestVector/releases), then check them in the folder you downloaded to:
+Releases are marked **pre-release** while this is a proof of concept. Download the wheel (`questvector-<version>-py3-none-any.whl`) and `SHA256SUMS` from the [Releases page](https://github.com/BearingQuest/questvector/releases), then check them in the folder you downloaded to:
 
 ```bash
 shasum -a 256 -c SHA256SUMS --ignore-missing     # the wheel matches the published checksum
-gh attestation verify questvector-1.1.0-py3-none-any.whl --repo dustenatx/QuestVector
+gh attestation verify questvector-<version>-py3-none-any.whl --repo BearingQuest/questvector
 ```
 
-The second check needs the [GitHub CLI](https://cli.github.com/), signed in (`gh auth login`). It confirms the wheel was built by this repository's release workflow from a tagged commit. Then install it in its own virtual environment:
+The second check needs the [GitHub CLI](https://cli.github.com/), signed in (`gh auth login`). It confirms the wheel was built by this repository's release workflow from a tagged commit. Releases after the move to BearingQuest are attested under `BearingQuest/questvector`; that command is unconfirmed until the first new release is verified.
+
+**v1.1.0 is different.** It was signed before the move, and its certificate names the repository that signed it (`dustenatx/QuestVector`), which can't change. Its attestations are stored under the `dustenatx` account, so it verifies only while that account exists. Use this instead, for the wheel and the same for the source archive:
+
+```bash
+gh attestation verify questvector-1.1.0-py3-none-any.whl --owner dustenatx --signer-workflow dustenatx/QuestVector/.github/workflows/release.yml
+gh attestation verify questvector-1.1.0.tar.gz --owner dustenatx --signer-workflow dustenatx/QuestVector/.github/workflows/release.yml
+```
+
+Then install the wheel in its own virtual environment:
 
 ```bash
 python3.14 -m venv ~/.questvector-venv
@@ -56,7 +65,7 @@ For local, offline narrative generation instead of the cloud SDKs, install [Olla
 ### Install from source
 
 ```bash
-git clone https://github.com/dustenatx/QuestVector.git
+git clone https://github.com/BearingQuest/questvector.git
 cd QuestVector
 
 python3.14 -m venv .venv
