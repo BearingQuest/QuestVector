@@ -476,13 +476,15 @@ until it's tested (PRD G8).
 ## 17. Pull request template
 Decided 3 Nov 2026 (owner): QuestVector adopts the base pull request
 template, `.github/pull_request_template.md`, from the Personal Software
-Projects engineering standards. **Blocked:** the base template isn't written
-yet; it's on a cross-project backlog outside this repository. Nothing to
-build until it exists.
+Projects engineering standards.
 
-When it exists:
-- Add `.github/pull_request_template.md`, starting from the base template and
-  tailored for QuestVector:
+Done (owner decision, 12 Nov 2026): the base template is in
+`.github/pull_request_template.md`, unchanged, and `CLAUDE.md` tells agents
+to fill in every section of it, in order, in the pull request body, because
+`gh pr create --body` skips the template.
+
+Remaining work:
+- Tailor `.github/pull_request_template.md` for QuestVector:
   - **Decision records:** which ADRs the change relies on, and which it
     changes or supersedes.
   - **ADR-0001 check:** nothing is published externally beyond what ADR-0014
@@ -491,13 +493,21 @@ When it exists:
   - **Live AI testing:** which LLM providers were tested live, and with what
     data. Synthetic data only, unless the owner says otherwise.
   - No deploy section.
-- Add a line to `CLAUDE.md` telling agents to fill in the template's sections
-  in the pull request body, because `gh pr create --body` skips the template.
 - Record the change in `CHANGELOG.md`. Add an ADR only if the tailoring
   makes a design choice worth recording.
 
-## 18. Weekly check for retired default models
-Decided 4 Nov 2026 (owner). Build after item 8. A provider can deprecate or
+## 18. Scheduled checks: weekly retired-model check and daily dependency audit
+Two scheduled GitHub Actions checks that tell the owner about a problem
+before a pull request trips over it. Each is its own workflow and its own
+pull request. Item 8's default-model update merged in PR #26 (5 Nov 2026,
+f2e5c6b), so both parts can be built now.
+
+GitHub disables scheduled workflows in a public repository after 60 days
+without repository activity. If that happens to either check, re-enable it
+from the Actions tab.
+
+### Weekly check for retired default models
+Decided 4 Nov 2026 (owner). A provider can deprecate or
 shut down a default model with little notice: when checked on 4 Nov 2026,
 the Gemini default had been shut down since 1 Jun 2026, and the Anthropic
 default was due to retire within the month. This check tells the owner
@@ -525,5 +535,46 @@ What it checks and does:
   Actions pinned to commit SHAs (`tests/test_workflows.py` enforces this),
   `ubuntu-24.04`, and a job timeout.
 
-Candidate, not decided: the scheduled pip-audit proposed on 3 Nov 2026
-could share this workflow.
+### Daily dependency audit
+Decided 5 Nov 2026 (owner). A new advisory against a locked version shows up
+as a failed scheduled run, which GitHub emails to the owner, before an
+unrelated pull request trips over it in the required `pip-audit` check.
+
+- Its own workflow file: a daily schedule on `main`, plus `workflow_dispatch`
+  to run it by hand. Never on pull requests, so it isn't a required check
+  and `.github/rulesets/main.json` doesn't change (ADR-0011).
+- Runs the same pip-audit command as the `pip-audit` job in
+  `.github/workflows/security.yml` (the `uv export` of the locked
+  dependencies, then `pip-audit --strict --disable-pip --no-deps`), so the
+  two agree. Its job name differs from that required check's.
+- Permissions: `contents: read` only. The cron time is off the hour, since
+  scheduled runs on the hour are delayed or dropped under load. Actions
+  pinned to commit SHAs, `ubuntu-24.04`, and `timeout-minutes`.
+- A test in `tests/test_workflows.py` checks the schedule, the permissions,
+  and that there is no `pull_request` trigger.
+- Patterns to read in the build PR's plan: BearingQuest/risk-trainer PR #52
+  and BearingQuest/XGeneratePosts PR #10.
+
+## 19. SBOM on each release
+Decided 5 Nov 2026 (owner). Each release carries a software bill of
+materials for the locked runtime dependencies, so a user or auditor can see
+what a release contains without installing it.
+
+- A CycloneDX 1.5 SBOM, generated in `release.yml`'s `build` job (read-only,
+  `contents: read`) with `uv export --format cyclonedx1.5 --no-dev --frozen`.
+  It is attached to the GitHub Release with the wheel, sdist and `SHA256SUMS`
+  before the draft is published, so it is part of the immutable release
+  (ADR-0014). Every release asset gets the build-provenance attestation, so
+  the SBOM is listed in `SHA256SUMS` and in the attestation subjects.
+- **Experimental in uv.** uv 0.13.1 warns that the format may change;
+  `--preview-features sbom-export` acknowledges that. Fallback if it breaks:
+  `cyclonedx-py`. The build PR adds an ADR recording the preview status and
+  the fallback.
+- A test that the SBOM lists the runtime packages and none of the dev-only
+  ones (pytest, pytest-cov, mypy, pyflakes, pip-audit).
+- Checked 12 Nov 2026 on `main` at 49b160c with uv 0.13.1: the export gives
+  CycloneDX 1.5, root component `questvector`, 23 components, and none of
+  those dev tools.
+- **Open question for the build plan** (recorded, not answered): whether the
+  optional AI-provider extras belong in the SBOM.
+- GitHub's dependency graph "Export SBOM" (SPDX) stays available on demand.

@@ -20,7 +20,9 @@ Python core. Read these before changing anything:
   synthetic data and simulated providers. No test may need a network
   connection, an API key, or a display.
 - **Work on a branch and open a pull request to `main`.** The owner reviews
-  and merges every change. Never push to `main` directly.
+  and merges every change. Never push to `main` directly. When you open a
+  pull request, fill in every section of `.github/pull_request_template.md`,
+  in the same order, in the PR body.
 - **Python 3.14 and uv (ADR-0013).** Set up with `uv sync --all-extras`.
   Change dependencies with `uv add` or `uv lock` and commit `uv.lock` with
   `pyproject.toml`; CI's `uv sync --locked` fails if they disagree.
