@@ -66,7 +66,7 @@ For local, offline narrative generation instead of the cloud SDKs, install [Olla
 
 ```bash
 git clone https://github.com/BearingQuest/questvector.git
-cd QuestVector
+cd questvector
 
 python3.14 -m venv .venv
 source .venv/bin/activate

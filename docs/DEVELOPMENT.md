@@ -14,7 +14,7 @@ itself.
 
 ```bash
 git clone https://github.com/BearingQuest/questvector.git
-cd QuestVector
+cd questvector
 uv sync --all-extras               # creates .venv from uv.lock
 ```
 
